@@ -19,7 +19,7 @@ class InfoResourceTest {
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("name", equalTo("learning-hub2"))
+                .body("name", equalTo("learning-hub"))
                 .body("version", equalTo(projectVersion));
     }
 }
