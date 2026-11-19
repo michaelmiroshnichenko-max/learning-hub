@@ -1,5 +1,7 @@
 # Learning Hub
 
+[![CI](https://github.com/michaelmiroshnichenko-max/learning-hub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/michaelmiroshnichenko-max/learning-hub/actions/workflows/ci.yml)
+
 Personal learning notes and course progress tracker. Quarkus 3.40 on Java 25.
 See [docs/vision.md](docs/vision.md), [docs/architecture.md](docs/architecture.md) and
 [docs/roadmap.md](docs/roadmap.md).
