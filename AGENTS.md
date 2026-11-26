@@ -71,6 +71,8 @@ public class InfoResource {
 - Entities stay inside the module; resources take and return DTO records (ADR 0006).
 - No N+1: list endpoints load relations (tags) for the whole page in one query, never per row.
 - Tests run against PostgreSQL via Dev Services (Docker required). No H2 or other in-memory database.
+- Seed data lives only in `src/main/resources/db/dev-seed` and is loaded only in `%dev`
+  (`%dev.quarkus.flyway.locations`). Tests create their own data; never rely on dev seed rows in tests.
 
 ## Testing
 - Test first: write a failing test, see it fail, then implement.
