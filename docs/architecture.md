@@ -155,8 +155,9 @@ Rules:
 
 ## 4. Data model
 
-IDs, times, strings and tag rules follow ADR 0005. `varchar` lengths below are proposals until OQ-11 is
-answered; the final values are set in the migration that creates the column.
+IDs, times, strings and tag rules follow ADR 0005. `title varchar(200)` is decided (OQ-11, S1); other
+`varchar` lengths below are proposals until OQ-11 is fully answered; the final values are set in the migration
+that creates the column.
 
 ```mermaid
 erDiagram
@@ -320,7 +321,7 @@ Content-Type: application/problem+json
 
 ### Validation
 - Bean Validation on form objects for simple rules: required fields, week 1-26, URL scheme, max 10 tags
-  (FR-3, FR-4, FR-8). Body size and "empty" rules follow OQ-17 once answered.
+  (FR-3, FR-4, FR-8). Whitespace-only title or body is empty; body max 102,400 UTF-8 bytes (OQ-17).
 - Tags are normalised to lowercase before validation and storage (FR-4).
 - Database constraints repeat the critical rules (section 4).
 - Markdown is rendered on the server with raw HTML disabled, then sanitised against an allow-list (FR-5).
