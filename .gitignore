@@ -48,3 +48,4 @@ plan/
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+/.mcp.json
