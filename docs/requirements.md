@@ -182,6 +182,7 @@ As a Learner, I want my data visible only to me so that I can write freely.
 - OQ-9 Is an audit trail of Admin actions required?
 - OQ-10 Can an Admin unlock a locked account early? Is anyone notified of a lockout?
 - OQ-11 Limits for title length, tag length/characters, number of source links per note?
+  *Partly answered (S1): title max 200 characters. Tag and source-link limits still open.*
 - OQ-12 What happens when the same note is edited in two sessions at once, and when a note is
   saved after it was deleted in another session? What does the other session see?
 - OQ-13 Is self-service password reset wanted in a later phase?
@@ -191,6 +192,8 @@ As a Learner, I want my data visible only to me so that I can write freely.
 - OQ-16 Does an account have a username, an email, or both? Are they unique ignoring letter case?
 - OQ-17 Is a title or body that contains only whitespace "empty"? Is the 100 KB body limit
   measured in bytes or characters?
+  *Answered (S1): whitespace-only counts as empty; the limit is 102,400 bytes of UTF-8
+  (config `learninghub.note.body-max-bytes`).*
 - OQ-18 May restoring a backup bring back notes that a Learner deleted permanently?
 - OQ-19 Are the NFR-3 numbers hard limits? If so, what happens when a limit is reached
   (new user, new note, total data)?

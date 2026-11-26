@@ -11,8 +11,11 @@
 ## Stack
 - Java 25, Maven (wrapper), Quarkus 3.40.1.2 (platform BOM; do not upgrade to 4.x without an ADR)
 - Extensions: `rest-jackson`, `smallrye-health`, `smallrye-openapi`
-- Tests: JUnit 5, `@QuarkusTest`, RestAssured
+- Tests: JUnit 5, `@QuarkusTest`, RestAssured, `quarkus-test-security` (`@TestSecurity(user = "<account uuid>")`)
 - From S1 (ADR 0003, 0005): PostgreSQL, Flyway, Hibernate ORM with Panache, Hibernate Validator
+- From S1: commonmark-java + OWASP java-html-sanitizer render note bodies to safe `bodyHtml` (FR-5)
+- Surefire/failsafe run with `-Duser.timezone=UTC` (PostgreSQL rejects some legacy JVM zone ids)
+- OpenAPI is written to `docs/openapi/` on every build; commit it with API changes
 - Planned in later stages (do not add early): Qute + HTMX (S4H), SmallRye JWT (S5), Docker, CI
 - Use Quarkus APIs (Jakarta REST, CDI, MicroProfile Config). No Spring-style code or annotations.
 
