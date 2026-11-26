@@ -12,7 +12,8 @@
 - Java 25, Maven (wrapper), Quarkus 3.40.1.2 (platform BOM; do not upgrade to 4.x without an ADR)
 - Extensions: `rest-jackson`, `smallrye-health`, `smallrye-openapi`
 - Tests: JUnit 5, `@QuarkusTest`, RestAssured
-- Planned in later stages (do not add early): PostgreSQL + Flyway, Qute + HTMX, SmallRye JWT, Docker, CI
+- From S1 (ADR 0003, 0005): PostgreSQL, Flyway, Hibernate ORM with Panache, Hibernate Validator
+- Planned in later stages (do not add early): Qute + HTMX (S4H), SmallRye JWT (S5), Docker, CI
 - Use Quarkus APIs (Jakarta REST, CDI, MicroProfile Config). No Spring-style code or annotations.
 
 ## Project structure
@@ -57,6 +58,16 @@ public class InfoResource {
 }
 ```
 - Formatting follows `.editorconfig` (UTF-8, LF, 4 spaces). Comment only non-obvious code.
+
+## Database
+- Flyway owns the schema: SQL in `src/main/resources/db/migration/V<n>__<description>.sql` (ADR 0003).
+- Hibernate only validates: `quarkus.hibernate-orm.schema-management.strategy=validate`, never `update` or `drop-and-create`.
+- Never edit a merged migration; add a new one. `note`, `tag` and `source_link` use `PanacheEntity` with sequences `<table>_seq`, `INCREMENT BY 50`; uuid and composite-key tables use `PanacheEntityBase` (ADR 0005).
+- Every query on `note`, `tag` and other user data filters by `owner_id`; never call `findById`, `listAll`
+  or `count` without it. Unknown or not-owned id -> 404 (FR-9).
+- Entities stay inside the module; resources take and return DTO records (ADR 0006).
+- No N+1: list endpoints load relations (tags) for the whole page in one query, never per row.
+- Tests run against PostgreSQL via Dev Services (Docker required). No H2 or other in-memory database.
 
 ## Testing
 - Test first: write a failing test, see it fail, then implement.
