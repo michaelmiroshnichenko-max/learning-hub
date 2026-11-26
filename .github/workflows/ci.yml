@@ -22,3 +22,9 @@ jobs:
 
       - name: Build and test
         run: ./mvnw --batch-mode verify
+
+      # The build regenerates docs/openapi/ from the code (quarkus.smallrye-openapi.store-schema-directory).
+      # A diff here means an API change was pushed without its updated OpenAPI snapshot, so reviewers
+      # and clients would see a stale contract. Fix: run ./mvnw verify locally and commit docs/openapi/.
+      - name: Check OpenAPI snapshot is up to date
+        run: git diff --exit-code -- docs/openapi

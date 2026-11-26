@@ -5,10 +5,12 @@ import dev.learninghub.shared.problem.Problem;
 import dev.learninghub.shared.problem.ProblemExceptionMappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -62,6 +64,19 @@ public class NoteResource {
     }
 
     @GET
+    @Operation(summary = "List own notes, newest updated first, optionally filtered by tags (FR-6, FR-7, FR-9)")
+    @APIResponse(responseCode = "200", description = "Page envelope; page is 0-based", content = @Content(
+            mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = NotePage.class)))
+    @APIResponse(responseCode = "401", description = "Not signed in", content = @Content(
+            mediaType = ProblemExceptionMappers.PROBLEM_JSON, schema = @Schema(implementation = Problem.class)))
+    @APIResponse(responseCode = "422", description = "Invalid page or size; errors[] names the parameter",
+            content = @Content(mediaType = ProblemExceptionMappers.PROBLEM_JSON,
+                    schema = @Schema(implementation = Problem.class)))
+    public NotePage list(@BeanParam @Valid NoteListQuery query, @Context SecurityContext securityContext) {
+        return noteService.list(currentUser.id(securityContext), query.page, query.size, query.tag);
+    }
+
+    @GET
     @Path("/{id}")
     @Operation(summary = "Get one of the current learner's notes with rendered, sanitised bodyHtml (FR-5)")
     @APIResponse(responseCode = "200", description = "The note", content = @Content(
@@ -73,5 +88,27 @@ public class NoteResource {
                     schema = @Schema(implementation = Problem.class)))
     public NoteResponse get(@PathParam("id") long id, @Context SecurityContext securityContext) {
         return noteService.find(id, currentUser.id(securityContext)).orElseThrow(NotFoundException::new);
+    }
+
+    @PUT
+    @Path("/{id}")
+    @Operation(summary = "Replace an own note's title, body, course week and tags; sets updatedAt (FR-3, FR-4, FR-5)")
+    @APIResponse(responseCode = "200", description = "The updated note", content = @Content(
+            mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = NoteResponse.class)))
+    @APIResponse(responseCode = "400", description = "Malformed JSON", content = @Content(
+            mediaType = ProblemExceptionMappers.PROBLEM_JSON, schema = @Schema(implementation = Problem.class)))
+    @APIResponse(responseCode = "401", description = "Not signed in", content = @Content(
+            mediaType = ProblemExceptionMappers.PROBLEM_JSON, schema = @Schema(implementation = Problem.class)))
+    @APIResponse(responseCode = "404", description = "Unknown id or not owned by the current learner (FR-9)",
+            content = @Content(mediaType = ProblemExceptionMappers.PROBLEM_JSON,
+                    schema = @Schema(implementation = Problem.class)))
+    @APIResponse(responseCode = "422", description = "Validation failed; errors[] names each field",
+            content = @Content(mediaType = ProblemExceptionMappers.PROBLEM_JSON,
+                    schema = @Schema(implementation = Problem.class)))
+    public NoteResponse update(
+            @PathParam("id") long id,
+            @Valid @NotNull(message = "request body is required") NoteRequest request,
+            @Context SecurityContext securityContext) {
+        return noteService.update(id, currentUser.id(securityContext), request).orElseThrow(NotFoundException::new);
     }
 }

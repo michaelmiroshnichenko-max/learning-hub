@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-@Disabled("S3: PUT /api/notes/{id} is not implemented yet")
 @QuarkusTest
 @Tag("FR-5")
 @TestSecurity(user = LEARNER_A)

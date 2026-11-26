@@ -32,7 +32,6 @@ import org.junit.jupiter.params.provider.CsvSource;
  * Other tests also create notes for learner A, so assertions only rely on the notes created here being
  * the newest ones (tests do not run in parallel).
  */
-@Disabled("S4: GET /api/notes is not implemented yet")
 @QuarkusTest
 @Tag("FR-6")
 @TestSecurity(user = LEARNER_A)
@@ -91,7 +90,10 @@ class NoteListTest {
     @CsvSource({
             "size=101, size",
             "size=0, size",
-            "page=-1, page"
+            "page=-1, page",
+            // page * size must fit the int offset Hibernate uses; past it the offset wraps (500 or wrong page)
+            "page=21474837&size=100, page",
+            "page=2147483647, page"
     })
     void fr6_invalidPagingReturns422(String query, String field) {
         given().when().get("/api/notes?" + query)

@@ -182,7 +182,8 @@ As a Learner, I want my data visible only to me so that I can write freely.
 - OQ-9 Is an audit trail of Admin actions required?
 - OQ-10 Can an Admin unlock a locked account early? Is anyone notified of a lockout?
 - OQ-11 Limits for title length, tag length/characters, number of source links per note?
-  *Partly answered (S1): title max 200 characters. Tag and source-link limits still open.*
+  *Partly answered (S1, S2): title max 200 characters; tag max 50 characters. Tag characters and
+  source-link limits still open.*
 - OQ-12 What happens when the same note is edited in two sessions at once, and when a note is
   saved after it was deleted in another session? What does the other session see?
 - OQ-13 Is self-service password reset wanted in a later phase?
