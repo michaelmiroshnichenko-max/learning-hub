@@ -131,7 +131,10 @@ public class ProblemExceptionMappers {
         }
     }
 
-    /** JSON property path of a violation, e.g. {@code title}; method and parameter nodes are skipped. */
+    /**
+     * JSON property path of a violation, e.g. {@code title} or {@code tags[0]}; method and parameter nodes are
+     * skipped, and list elements contribute only their index (not Hibernate Validator's {@code <list element>}).
+     */
     private static String jsonField(ConstraintViolation<?> violation) {
         StringBuilder field = new StringBuilder();
         for (Path.Node node : violation.getPropertyPath()) {
@@ -139,7 +142,7 @@ public class ProblemExceptionMappers {
                     || node.getKind() == ElementKind.CROSS_PARAMETER || node.getKind() == ElementKind.RETURN_VALUE) {
                 continue;
             }
-            if (node.getName() != null) {
+            if (node.getName() != null && node.getKind() != ElementKind.CONTAINER_ELEMENT) {
                 if (!field.isEmpty()) {
                     field.append('.');
                 }

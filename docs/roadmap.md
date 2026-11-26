@@ -24,9 +24,9 @@ Status: Draft v0.2 · Date: 2026-11-19 · Sources: docs/requirements.md, docs/ar
 |-------|------|--------|------|----------------|-----------|
 | S0 | Skeleton: Quarkus 3.40 on Java 25, `shared` module (base layout, HTMX 2.0.11 served from `/static`, `htmx.config.responseHandling` for 400/404/422), JSON logging, health check, ArchUnit module rules, `AGENTS.md`, GitHub Actions CI, Dockerfile | — (NFR-5, NFR-9, NFR-11; ADR 0001-0002) | 4 | `./mvnw verify` | CI green on the PR; `/q/health/ready` returns UP in a `@QuarkusTest`; ArchUnit runs in CI; `docker build` succeeds in CI; `AGENTS.md` lists build/test commands, module rules, FR test tags, migration rules (naming, never edit a merged migration), no secrets in the repo, no `plan` folder in commits |
 | S1 | Create and view a note via the JSON API (ADR 0005, 0006): PostgreSQL via Dev Services, Flyway (`db/migration`, `migrate-at-start`, `validate` in CI), persistence extensions, minimal `account` table (`id`, `login`, `created_at`), dev/test learner seed, `note` table, `POST /api/notes`, `GET /api/notes/{id}` with safe Markdown rendering (`bodyHtml`), problem-details mappers in `shared` | FR-3, FR-5 (view), FR-9 | 5 | `./mvnw verify` | Items S1.1-S1.12 in "S1 and S2 in detail" |
-| S2 | Tags and source links on create and view via the JSON API: `tag`, `note_tag`, `source_link` tables, `GET /api/tags`, `DELETE /api/tags/{id}` | FR-4, FR-9 | 5 | `./mvnw verify` | Items S2.1-S2.9 in "S1 and S2 in detail" |
-| S3 | Edit and delete own notes | FR-5, FR-9 | 5 | `./mvnw verify -Dgroups=FR-5,FR-9` | Edit applies FR-3 and FR-4 rules and updates `updated_at`; delete removes the note, its links, its tag links and orphan tags; edit/delete of another user's note returns 404; OQ-12 behaviour tested |
-| S4 | `GET /api/notes`: list, text search, tag and week filters, paging (ADR 0006) | FR-6, FR-7, FR-9 | 5 | `./mvnw verify` | No query returns all own notes, `updatedAt desc, id desc`, 20 per page, page from 0; notes with equal `updatedAt` never repeat or vanish across pages; `size` above 100, `size` below 1, negative `page` or `week` outside 1-26 give 422; text match on title and body ignores case, per OQ-1; all selected tags required; unknown tag gives an empty page; week filter; combined criteria; no match gives `items: []` and `totalItems: 0`; other users' notes never appear |
+| S2 | Tags, edit and paged list via the JSON API: `tag`, `note_tag` tables, tags by name in `POST`/`PUT /api/notes`, `GET /api/tags`, `DELETE /api/tags/{id}`, `GET /api/notes` with `page`, `size` and `tag` (ADR 0006) | FR-4, FR-5 (edit), FR-6 (paging), FR-7 (tags), FR-9 | 5 | `./mvnw verify` | Items S2.1-S2.10 in "S1 and S2 in detail" |
+| S3 | Source links (moved from S2) and delete own notes: `source_link` table, links in `POST`/`PUT` and view, `DELETE /api/notes/{id}` | FR-4, FR-5, FR-9 | 5 | `./mvnw verify -Dgroups=FR-4,FR-5,FR-9` | `http`/`https` links saved in order, other schemes or invalid URLs give 422 with `field` = `sourceLinks[i]`, links never fetched; delete removes the note, its links, its tag links and orphan tags; delete of another user's note returns 404; OQ-12 behaviour tested |
+| S4 | `GET /api/notes`: text search and week filter on top of the S2 list (ADR 0006) | FR-6, FR-7, FR-9 | 5 | `./mvnw verify` | `week` outside 1-26 gives 422; text match on title and body ignores case, per OQ-1; week filter; combined criteria (text, tags, week); no match gives `items: []` and `totalItems: 0`; other users' notes never appear |
 | S4H | Note HTML views (ADR 0002) over the S1-S4 services: list with search, filters and pager; new-note and edit forms with data-policy notice; show page with rendered Markdown; delete; problem details rendered as HTML fragments | FR-3, FR-5, FR-6, FR-7, FR-9 | 6 | `./mvnw verify` | Each page returns 200 for own data and 404 for another user's note; both forms show the data-policy notice (FR-9); a 422 renders the field message into the form's error target; an empty list shows "no notes found" (FR-6); rendered body is inert as in S1.9 |
 | S5 | Sign-in and sign-out: decide ADR 0004 (Accepted or superseded); add sign-in columns to `account`, `account_role`, `auth_session`; first-Admin bootstrap from env; bcrypt; SmallRye JWT in `HttpOnly`/`Secure`/`SameSite=Strict` cookie; short-lived token with renewal; per-request session check; 8 h inactivity; lockout; `@RolesAllowed`; dev seed gets password hashes | FR-1, FR-9 | 6 | `./mvnw verify -Dgroups=FR-1,FR-9` | Valid credentials start a session; wrong credentials give one generic message; 5 failures lock for 15 min, also for valid credentials; expired, inactive (8 h), signed-out or ended sessions are rejected; token renewal stops once a session ends; every page except sign-in and health requires a session; no password or token in logs (NFR-8); human review done |
 | S6 | Admin account management: list, create, disable, reset password | FR-2, FR-9 | 6 | `./mvnw verify -Dgroups=FR-2,FR-9` | Admin creates an account with roles; duplicate login rejected with a reason; disable and reset end all sessions of that user at once; non-Admin gets 403; Admin pages show no notes, tags, links or progress; human review done |
@@ -57,19 +57,22 @@ the FR tag. On Windows replace `./mvnw` with `.\mvnw.cmd` (JDK 25).
 | S1.11 | Errors are `application/problem+json` as in architecture §5; malformed JSON gives 400; no stack trace or submitted value in any error body | `./mvnw test -Dtest=ProblemDetailsTest` |
 | S1.12 | Stage check: the full suite is green | `./mvnw verify` |
 
-### S2 — Tags and source links (JSON API)
+### S2 — Tags, edit and paged list (JSON API)
+
+Source links moved to S3 so that S2 can deliver the tag filter and paging the list needs.
 
 | # | Done when | Verify |
 |---|-----------|--------|
-| S2.1 | Migration creates `tag`, `note_tag`, `source_link` with sequences, `UNIQUE (owner_id, name)`, `note_tag` primary key and `(tag_id)` index, cascades as in architecture §4; Hibernate `validate` passes | `./mvnw test -Dtest=NoteTagsTest` |
+| S2.1 | `V3__create_tag.sql` creates `tag` (`varchar(50)`, OQ-11) with `tag_seq`, `UNIQUE (owner_id, name)`, `note_tag` with primary key `(note_id, tag_id)`, index `(tag_id, note_id)`, cascades as in architecture §4; Hibernate `validate` passes | `./mvnw test -Dtest=NoteTagsTest` |
 | S2.2 | Tag names in `POST /api/notes` are trimmed and lowercased; `Java`, `java`, ` JAVA ` give one tag | `./mvnw test -Dtest=NoteTagsTest -Dgroups=FR-4` |
-| S2.3 | 11 distinct tags return 422 stating the limit; 10 distinct tags plus case duplicates are accepted | `./mvnw test -Dtest=NoteTagsTest -Dgroups=FR-4` |
-| S2.4 | An existing tag of the owner is reused; two parallel creates of the same new tag both succeed with one `tag` row | `./mvnw test -Dtest=NoteTagsTest -Dgroups=FR-4` |
-| S2.5 | `http` and `https` source links are saved in order; any other scheme or invalid URL returns 422 with `field` = `sourceLinks[i]`; links are never fetched | `./mvnw test -Dtest=SourceLinkTest -Dgroups=FR-4` |
-| S2.6 | `GET /api/notes/{id}` returns `tags` (sorted) and `sourceLinks` (in order) | `./mvnw test -Dtest=NoteViewTest -Dgroups=FR-4` |
-| S2.7 | `GET /api/tags` returns `[{id, name}]` sorted by name, only the current user's tags; users A and B with the same tag name get separate rows | `./mvnw test -Dtest=TagPrivacyTest -Dgroups=FR-9` |
+| S2.3 | 11 distinct tags return 422 stating the limit; 10 distinct tags plus case duplicates are accepted; a blank tag or one over 50 characters returns 422 with `field` = `tags[i]` | `./mvnw test -Dtest=NoteTagsTest -Dgroups=FR-4` |
+| S2.4 | An existing tag of the owner is reused; unknown names are created for the owner; two parallel creates of the same new tag both succeed with one `tag` row | `./mvnw test -Dtest=NoteTagsTest -Dgroups=FR-4` |
+| S2.5 | `PUT /api/notes/{id}` applies FR-3 and FR-4 rules, replaces the tags and updates `updatedAt`; another user's note returns 404 | `./mvnw test -Dtest=NoteUpdateTest,NoteTagsTest -Dgroups=FR-5` |
+| S2.6 | `GET /api/notes/{id}` returns `tags` sorted by name | `./mvnw test -Dtest=NoteTagsTest -Dgroups=FR-4` |
+| S2.7 | `GET /api/tags` returns `[{id, name}]` sorted by name, only the current user's tags; users A and B with the same tag name get separate rows | `./mvnw test -Dtest=TagPrivacyTest,TagResourceTest` |
 | S2.8 | `DELETE /api/tags/{id}` returns 204, unlinks the tag, keeps the notes and their `updatedAt`; another user's tag id returns 404 | `./mvnw test -Dtest=TagResourceTest -Dgroups=FR-4,FR-9` |
-| S2.9 | Stage check: the full suite is green, including S1 | `./mvnw verify` |
+| S2.9 | `GET /api/notes`: `updatedAt desc, id desc`, 20 per page, page from 0, envelope with `totalItems` and `totalPages`; equal `updatedAt` never repeats or vanishes across pages; `size` outside 1-100 or negative `page` gives 422; repeated `tag` requires all tags; unknown tag gives an empty page; one page costs at most 3 SQL statements | `./mvnw test -Dtest=NoteListTest,NoteTagFilterTest,NoteListQueryCountTest` |
+| S2.10 | Stage check: the full suite is green, including S1 | `./mvnw verify` |
 
 ## Decisions before a stage
 
@@ -91,10 +94,10 @@ the FR tag. On Windows replace `./mvnw` with `.\mvnw.cmd` (JDK 25).
 | FR-1 Sign in and sign out | `auth` | S5, S10 |
 | FR-2 Manage user accounts | `account` | S6 |
 | FR-3 Create a note | `note` | S1, S4H, S10 |
-| FR-4 Tags and source links | `note` | S2 |
-| FR-5 View, edit, delete | `note` | S1, S3, S4H |
-| FR-6 Search by text | `note` | S4, S4H, S10 |
-| FR-7 Filter by tags and week | `note` | S4, S4H |
+| FR-4 Tags and source links | `note` | S2 (tags), S3 (source links) |
+| FR-5 View, edit, delete | `note` | S1, S2 (edit), S3, S4H |
+| FR-6 Search by text | `note` | S2 (list, paging), S4, S4H, S10 |
+| FR-7 Filter by tags and week | `note` | S2 (tags), S4, S4H |
 | FR-8 Progress by course week | `progress` | S8, S10 |
 | FR-9 Note privacy | all | S1-S8, S4H (every slice adds its own privacy tests; S4H shows the data-policy notice) |
 

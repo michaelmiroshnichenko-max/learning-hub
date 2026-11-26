@@ -86,10 +86,10 @@ tests use `@TestSecurity` (roadmap). Role `learner` endpoints always filter by t
 
 | Method | Path | Success | Errors | Purpose | FR | Stage |
 |--------|------|---------|--------|---------|----|-------|
-| GET | `/api/notes?page=0&size=20&tag=&week=` | 200 page envelope | 422 invalid `page`, `size` or `week` | List own notes, sorted `updatedAt desc, id desc`; repeated `tag` means all tags required; `week` 1-26; text query `q` (OQ-1); all given criteria must match; no match gives `items: []`, `totalItems: 0` | FR-6, FR-7, FR-9 | S4 |
-| POST | `/api/notes` | 201 + `Location`, note | 400 malformed JSON, 422 validation | Create note with tags, source links, course week | FR-3, FR-4 | S1, S2 |
+| GET | `/api/notes?page=0&size=20&tag=&week=` | 200 page envelope | 422 invalid `page`, `size` or `week` | List own notes, sorted `updatedAt desc, id desc`; repeated `tag` means all tags required; `week` 1-26; text query `q` (OQ-1); all given criteria must match; no match gives `items: []`, `totalItems: 0` | FR-6, FR-7, FR-9 | S2 (paging, `tag`), S4 (`q`, `week`) |
+| POST | `/api/notes` | 201 + `Location`, note | 400 malformed JSON, 422 validation | Create note with tags, source links, course week | FR-3, FR-4 | S1, S2, S3 |
 | GET | `/api/notes/{id}` | 200 note | 404 | Show own note with `bodyHtml` (rendered and sanitised) | FR-5, FR-9 | S1 |
-| PUT | `/api/notes/{id}` | 200 note | 400, 404, 422 | Replace title, body, week, tags, links; set `updatedAt` | FR-3, FR-4, FR-5 | S3 |
+| PUT | `/api/notes/{id}` | 200 note | 400, 404, 422 | Replace title, body, week, tags, links; set `updatedAt` | FR-3, FR-4, FR-5 | S2, S3 (links) |
 | DELETE | `/api/notes/{id}` | 204 | 404 | Delete permanently with links, tag links and orphan tags | FR-5 | S3 |
 | GET | `/api/tags` | 200 array of `{id, name}` | — | Own tags, sorted by name | FR-4, FR-9 | S2 |
 | DELETE | `/api/tags/{id}` | 204 | 404 | Delete own tag and unlink it from notes (ADR 0005) | FR-4, FR-9 | S2 |
@@ -117,7 +117,9 @@ Note request (`POST`, `PUT`) and response; ids are numbers, times are ISO-8601 U
   response-only. Request and response bodies are records; entities never cross the API boundary.
 - List page: `{"items": [...], "page": 0, "size": 20, "totalItems": 57, "totalPages": 3}`. Items are
   summaries (`id`, `title`, `courseWeek`, `tags`, `updatedAt`) without the body. Tags for a page are
-  loaded in one query, not per row.
+  loaded in one query, not per row. A page costs three statements: the projected page query with
+  `LIMIT/OFFSET`, its count, and the tags of the page's notes. Collections are never fetch-joined in a
+  paged query. Tag names are sorted by code point, not by database collation.
 
 ### 3.2 HTML pages (ADR 0002; note pages in S4H, others in S5, S6, S8)
 
@@ -155,7 +157,8 @@ Rules:
 
 ## 4. Data model
 
-IDs, times, strings and tag rules follow ADR 0005. `title varchar(200)` is decided (OQ-11, S1); other
+IDs, times, strings and tag rules follow ADR 0005. `title varchar(200)` (S1) and tag `name varchar(50)` (S2)
+are decided (OQ-11); other
 `varchar` lengths below are proposals until OQ-11 is fully answered; the final values are set in the migration
 that creates the column.
 
@@ -234,7 +237,7 @@ Constraints and indexes beyond primary keys:
 | `note` | `CHECK (course_week BETWEEN 1 AND 26)` | FR-3 |
 | `note` | index `(owner_id, updated_at DESC, id DESC)` | Owner filter and default sort (FR-6, FR-9, NFR-4) |
 | `tag` | `UNIQUE (owner_id, name)`; also serves lookups by name | FR-4, FR-9 |
-| `note_tag` | primary key `(note_id, tag_id)`; index `(tag_id)` | Cascade from `tag`, tag filter (FR-7) |
+| `note_tag` | primary key `(note_id, tag_id)`; index `(tag_id, note_id)` | Tags of a page; cascade from `tag`, tag filter as index-only scan (FR-7) |
 | `source_link` | `UNIQUE (note_id, position)`; also serves lookups by note | FR-4 |
 | `week_progress` | primary key `(owner_id, week)`, `CHECK (week BETWEEN 1 AND 26)`, `CHECK (status IN ('in_progress', 'done'))` | FR-8 |
 | all `owner_id`, `account_id` | `FOREIGN KEY ... REFERENCES account(id)`, no cascade | Account delete is out of scope (OQ-3) |
