@@ -43,4 +43,22 @@ class SeedLocationTest {
         assertTrue(seedLines.stream().allMatch(l -> l.startsWith("%dev.") || l.startsWith("%test.")),
                 () -> "db/seed outside %dev/%test: " + seedLines);
     }
+
+    @Test
+    void devSeedLocationIsEnabledOnlyInDevProfile() throws IOException {
+        List<String> devSeedLines = Files.readAllLines(Path.of("src/main/resources/application.properties")).stream()
+                .map(String::strip)
+                .filter(l -> l.contains("db/dev-seed"))
+                .toList();
+
+        assertEquals(List.of("%dev.quarkus.flyway.locations=db/migration,db/dev-seed"), devSeedLines);
+    }
+
+    @Test
+    void devSeedIsNotAppliedInTestProfile() {
+        assertEquals(Optional.of("0"), TestDb.queryString(dataSource,
+                "SELECT count(*)::text FROM flyway_schema_history WHERE script LIKE '%dev_seed%'"));
+        assertEquals(Optional.of("0"), TestDb.queryString(dataSource,
+                "SELECT count(*)::text FROM account WHERE login IN ('dev-user', 'other-user')"));
+    }
 }
